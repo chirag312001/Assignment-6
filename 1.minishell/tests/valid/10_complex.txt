@@ -1,0 +1,14 @@
+var i = 0;
+var sum = 0;
+var limit = 10;
+while (i < limit) {
+    if (i == 0)
+        sum = sum + 1;
+    else {
+        if (i < 5)
+            sum = sum + i * 2;
+        else
+            sum = sum + (i + 1) * (i - 1);
+    }
+    i = i + 1;
+}

@@ -1,0 +1,25 @@
+history -c
+history
+clear
+ps
+sleep 5 &
+ps
+sleep 5 &
+ps
+ps
+clear
+./run.sh
+submit tests/valid/01_var_decl.txt 1
+submit tests/valid/01_var_decl.txt 1
+submit ./tests/valid/01_var_decl.txt
+submit ./tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+\submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+history
+clear

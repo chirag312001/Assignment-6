@@ -1,0 +1,367 @@
+#include <stdio.h>    
+#include <unistd.h>   
+#include <limits.h>   
+#include <ctype.h>    
+#include <string.h> 
+#include <sys/types.h> 
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include "include/parser.h"
+#include "include/execute.h"
+#include "include/history.h"
+#include "../3.lexor/src/lab_parser.h"
+#include "process/process_mgmt.h"
+
+
+
+#define HistorySize 25
+char *buffer[HistorySize];
+int buf_count = 0;
+
+void getCurrDir(char *buffer, size_t size);
+
+int tokenize(const char *line, char *tokens[], int max_tokens);
+void free_tokens(char *tokens[], int count);
+
+//this handles the submmit cmd
+int handle_submit(char **args) {
+    if (strcmp(args[0], "submit") != 0) return 0;
+
+    if (args[1] == NULL) {
+        printf("Usage: submit <filename>\n");
+        return 1;
+    }
+
+
+    // 1. Create Process Entry
+    int pid = create_process(args[1]);
+    if (pid == -1) return 1;
+
+    // 1. Resolve path (optional, but good practice)
+    char input_file[4096];
+    if (realpath(args[1], input_file) == NULL) {
+        perror("Error finding file");
+        return 1;
+    }
+
+    // 2. Assign PID (Mock logic as requested)
+    // Find empty slot logic here...
+    // printf("Compiling %s...\n", input_file);
+
+    printf("Submitting %s to parser...\n", args[1]);
+
+    // 3. CALL THE FUNCTION DIRECTLY
+    // We pass 0 for do_eval (equivalent to --no-eval)
+    int result = run_parser(input_file, 0); 
+
+    if (result == 0) {
+        printf("[Success] AST Generated.\n");
+        // Update process table state to SUBMITTED...
+    } else {
+        printf("[Failed] Syntax errors found.\n");
+    }
+
+    return 1;
+}
+
+
+
+static int validate_tokens_for_basic_errors(char *tokens[], int n) {
+    if (tokens == NULL) {
+        printf("(vtbe)Validation error: tokens is NULL\n");
+        return -1;
+    }
+    if (n <= 0) {
+        printf("(vtbe)Validation error: empty command\n");
+        return -1;
+    }
+    if (strcmp(tokens[0], "|") == 0) {
+        printf("(vtbe)Syntax error: '|' cannot be at the start\n");
+        return -1;
+    }
+    if (strcmp(tokens[n-1], "|") == 0) {
+        printf("(vtbe)Syntax error: '|' cannot be at the end\n");
+        return -1;
+    }
+    for (int i = 0; i < n; ++i) {
+
+        if(strcmp(tokens[i], "||") == 0 || strcmp(tokens[i], "&&") == 0 || (strcmp(tokens[i], ">>") == 0 && (strcmp(tokens[i+1], ">") == 0 || strcmp(tokens[i+1], ">>") == 0) )) {
+            
+            if(strcmp(tokens[i+1], ">>") == 0){
+                printf("(vtbe)Syntax error: '>>>>' operator not supported\n");
+                return -1;
+            }
+            if(strcmp(tokens[i+1], ">") == 0){
+                printf("(vtbe)Syntax error: '>>>' operator not supported\n");
+                return -1;
+            }
+            
+            
+            printf("(vtbe)Syntax error: '%s' operator not supported\n", tokens[i]);
+            return -1;
+        }
+        if (strcmp(tokens[i], "<") == 0 || strcmp(tokens[i], ">") == 0 || strcmp(tokens[i], ">>") == 0) {
+            if (i + 1 >= n) {
+                printf("(vtbe)Syntax error: missing filename after '%s'\n", tokens[i]);
+                return -1;
+            }
+            if (tokens[i+1][0] == '\0') {
+                printf("(vtbe)Syntax error: invalid filename after '%s'\n", tokens[i]);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+
+// zommbie process clean up handler, WNOHANG is wait no hang
+void handle_zoombie(){
+    int pid;
+    
+    while((pid = waitpid(-1, NULL, WNOHANG)) > 0){
+       
+        
+    }
+    
+}
+
+void sigint_handler(int sig) {
+
+    write(STDOUT_FILENO, "\n", 1);
+
+    char curr_working_dir[4000];
+    getCurrDir(curr_working_dir, sizeof(curr_working_dir));
+
+
+}
+
+char *trim(char *str) {
+    if(str == NULL) {
+        return str;
+    }
+    char *end;
+    while(isspace((unsigned char)*str)){
+        str++;
+    }
+    if(*str == 0)  
+        return str;
+    end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    *(end + 1) = '\0';
+    return str;
+}
+
+// directory traversing function later i wiil also implement auto complete feature for this
+int directory_traversing(char **argument_Name){
+    if(strcmp(argument_Name[0], "cd") != 0) {
+        return 0; // not a cd command
+    }
+
+    char *target_Dir = NULL;
+
+    if(argument_Name[1] == NULL || strcmp(argument_Name[1], "~") == 0) {
+        target_Dir = getenv("HOME");
+    }else{
+        target_Dir = argument_Name[1];
+    }
+
+    if(target_Dir == NULL)
+        target_Dir = ".";
+
+    if(chdir(target_Dir) != 0) {
+        perror("cd");
+    }
+    addToHistory(argument_Name[0]);
+
+    return 1; // we handled a cd
+}
+
+int pwd_print(char **argument_Name){
+    if(strcmp(argument_Name[0], "pwd") != 0){
+        return -1;
+    }
+    char print[100];
+    getcwd(print, sizeof(print));
+    printf("%s\n", print);
+    return 1;
+}
+
+void getCurrDir(char *buffer, size_t size){
+    if(getcwd(buffer, size)){
+        printf("%s $ ", buffer);
+    } else {
+        printf("$ ");
+        
+    }
+    fflush(stdout);
+}
+
+int main() {
+    initHistory();
+    init_process_table();
+
+    signal(SIGCHLD, handle_zoombie);
+    signal(SIGINT, sigint_handler); // custom handler for Ctrl+C in main shell process
+    
+    while(1){
+
+
+        char *read = NULL;
+        size_t size = 0;
+       char curr_working_dir[4000];  
+
+       getCurrDir(curr_working_dir, sizeof(curr_working_dir));
+       
+        
+
+       if(getline(&read, &size, stdin) == -1) {
+           printf("\n");
+           free(read);
+           break;
+       }
+
+
+       char *trimmed_input = trim(read);
+
+       if(strlen(trimmed_input) == 0){
+            free(read);
+           continue;
+       }
+
+       if(strcmp(trimmed_input, "history") == 0) {
+            printHistory();
+           addToHistory(trimmed_input);
+           
+           free(read);
+           continue;
+       }
+        if(strcmp(trimmed_input, "history -c") == 0) {
+            clearHistory();
+            addToHistory(trimmed_input);
+            
+            free(read);
+            continue;
+        }
+         if(strcmp(trimmed_input, "exit") == 0) {
+            addToHistory(trimmed_input);
+              free(read);
+              break;
+         }
+
+        
+
+        char *argument_list[100];
+        int arg_Count = tokenize(trimmed_input, argument_list, 100);
+
+        if(arg_Count == 0) {
+            free(read);
+            continue;
+        }
+        if(validate_tokens_for_basic_errors(argument_list, arg_Count) < 0) {
+            free_tokens(argument_list, arg_Count);
+            free(read);
+            continue;
+        }
+
+        int check = directory_traversing(argument_list);
+        if(check == 1){
+            free(read);
+            continue;
+        }
+        int check_pwd = pwd_print(argument_list);
+        if(check_pwd == 1){
+            free(read);
+            continue;
+        }
+
+        int check_submit = handle_submit(argument_list);
+        if (check_submit == 1) {
+            addToHistory(trimmed_input);
+            free(read);
+            continue; // Skip the rest of the loop (execvp, etc.)
+        }
+
+        
+        
+
+        // //tokeniser print for debugging
+        // printf("---- Tokens ----\n");
+        // for(int i = 0; i < arg_Count; i++){
+        //     printf("Argument %d: %s\n", i, argument_list[i]);
+        // }
+        // printf("----------------\n");
+
+        // // command_t cmd;
+        // // if(parse_tokens(argument_list, arg_Count, &cmd) < 0){
+        // //     free_tokens(argument_list, arg_Count);
+        // //     free(read);
+        // //     continue;
+        // // }
+        // // // DEBUG: see what parser understood
+        // // printf("---- Parsed Command ----\n");
+        // // for (int i = 0; cmd.argv[i] != NULL; i++) {
+        // //     printf("argv[%d] = %s\n", i, cmd.argv[i]);
+        // // }
+        // // printf("infile:  %s\n", cmd.infile  ? cmd.infile  : "(none)");
+        // // printf("outfile: %s\n", cmd.outfile ? cmd.outfile : "(none)");
+        // // printf("------------------------\n");
+
+        command_t left , right;
+        int is_pipeline = 0;
+
+        int check_pipeline = parse_line_to_check_pipeline(argument_list, arg_Count, &left, &right, &is_pipeline);
+        if(check_pipeline < 0){
+            free_tokens(argument_list, arg_Count);
+            free(read);
+            continue;
+        }
+        
+        if(!is_pipeline){
+            execute_cmd(&left);
+            addToHistory(trimmed_input);
+            free_memory_cmd(&left);
+            
+            
+            
+        }else{
+            // // DEBUG: see what parser understood for left command
+            // printf("---- Left Command ----\n");
+            // for (int i = 0; left.argv[i] != NULL; i++) {
+            //     printf("argv[%d] = %s\n", i, left.argv[i]);
+            // }
+            // printf("infile:  %s\n", left.infile  ? left.infile  : "(none)");
+            // printf("outfile: %s\n", left.outfile ? left.outfile : "(none)");
+            // printf("------------------------\n");
+
+            // // DEBUG: see what parser understood for right command
+            // printf("---- Right Command ----\n");
+            // for (int i = 0; right.argv[i] != NULL; i++) {
+            //     printf("argv[%d] = %s\n", i, right.argv[i]);
+            // }
+            // printf("infile:  %s\n", right.infile  ? right.infile  : "(none)");
+            // printf("outfile: %s\n", right.outfile ? right.outfile : "(none)");
+            // printf("------------------------\n");
+
+            // Execute pipeline
+            // (Implementation of pipeline execution is not shown here)
+
+            run_pipeline(&left, &right);
+            addToHistory(trimmed_input);
+            
+            free_memory_cmd(&left);
+            free_memory_cmd(&right);
+          
+        
+        }
+        
+       
+        free_tokens(argument_list, arg_Count);
+        free(read);
+    }
+
+    freeHistory();
+    
+    return 0;
+}
