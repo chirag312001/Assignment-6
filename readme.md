@@ -68,3 +68,12 @@ To verify the integration, follow these steps from the shell:
     * `gc` -> Trigger the Lab 5 Garbage Collector.
 
 ---
+
+
+### the part which are not done yet are, debugger memstat , leak , gc 
+- execution way
+in folder 1 go and make
+from ./mini-shell -> give input as submit filename(eg;- tests/valid/01_var_decl.txt) -> .asm file -> assembler -> byc ->vm
+
+
+debugger is not done yet
