@@ -1,0 +1,10 @@
+PUSH 3
+STORE 0
+loop:
+LOAD 0
+PUSH 1
+SUB
+DUP
+STORE 0
+JNZ loop
+HALT

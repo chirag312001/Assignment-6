@@ -1,0 +1,4 @@
+PUSH 7
+DUP
+POP
+HALT

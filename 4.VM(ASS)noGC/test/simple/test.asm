@@ -1,0 +1,2 @@
+PUSH 10
+HALT

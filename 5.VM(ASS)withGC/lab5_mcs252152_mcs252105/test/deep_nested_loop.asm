@@ -1,0 +1,24 @@
+CALL f1
+HALT
+
+f1:
+CALL f2
+PUSH 5
+ADD
+RET
+
+f2:
+CALL f3
+PUSH 5
+ADD
+RET
+
+f3:
+CALL f4
+PUSH 5
+ADD
+RET
+
+f4:
+PUSH 10
+RET
