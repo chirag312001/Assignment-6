@@ -60,3 +60,20 @@ ps
 run 102
 ps
 clear
+submit tests/valid/01_var_decl.txt
+run 100
+memstat 100
+submit tests/valid/01_var_decl.txt
+run 100
+memstat 100
+gc 100
+leaks
+leaks 100
+gc
+gc 100
+leaks 100
+submit tests/valid/01_var_decl.txt
+run 100
+clear
+submit tests/valid/01_var_decl.txt
+run 100

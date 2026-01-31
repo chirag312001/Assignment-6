@@ -27,8 +27,112 @@ void free_tokens(char *tokens[], int count);
 
 
 
+// --- MEMSTAT: Memory Statistics ---
+// int handle_memstat(char **args) {
+//     if (strcmp(args[0], "memstat") != 0) return 0;
+    
+//     if (args[1] == NULL) {
+//         printf("Usage: memstat <PID>\n");
+//         return 1;
+//     }
 
+//     int pid = atoi(args[1]);
+//     Process *proc = get_process(pid);
 
+//     if (!proc) {
+//         printf("[Error] PID %d not found.\n", pid);
+//         return 1;
+//     }
+
+//     // Define VM Path
+//     const char *VM_BIN = "../5.VM(ASS)withGC/bvm";
+
+//     // Construct Bytecode Filename (PID_name.byc)
+//     char bytecode_file[256];
+//     strcpy(bytecode_file, proc->output_file);
+//     char *dot = strrchr(bytecode_file, '.');
+//     if (dot) strcpy(dot, ".byc");
+//     else strcat(bytecode_file, ".byc");
+
+//     printf("[Shell] Running 'memstat' for PID %d...\n", pid);
+    
+//     char cmd[1024];
+//     // Pass "memstat" flag to VM
+//     snprintf(cmd, sizeof(cmd), "'%s' %s memstat", VM_BIN, bytecode_file);
+    
+//     int ret = system(cmd);
+//     if (ret != 0) printf("[Shell] Command failed.\n");
+
+//     return 1;
+// }
+
+// // --- GC: Force Garbage Collection ---
+// int handle_gc(char **args) {
+//     if (strcmp(args[0], "gc") != 0) return 0;
+
+//     if (args[1] == NULL) {
+//         printf("Usage: gc <PID>\n");
+//         return 1;
+//     }
+
+//     int pid = atoi(args[1]);
+//     Process *proc = get_process(pid);
+
+//     if (!proc) {
+//         printf("[Error] PID %d not found.\n", pid);
+//         return 1;
+//     }
+
+//     const char *VM_BIN = "../5.VM(ASS)withGC/bvm";
+//     char bytecode_file[256];
+//     strcpy(bytecode_file, proc->output_file);
+//     char *dot = strrchr(bytecode_file, '.');
+//     if (dot) strcpy(dot, ".byc");
+//     else strcat(bytecode_file, ".byc");
+
+//     printf("[Shell] Triggering GC for PID %d...\n", pid);
+    
+//     char cmd[1024];
+//     // Pass "gc" flag to VM
+//     snprintf(cmd, sizeof(cmd), "'%s' %s gc", VM_BIN, bytecode_file);
+    
+//     system(cmd);
+//     return 1;
+// }
+
+// // --- LEAKS: Check for Memory Leaks ---
+// int handle_leaks(char **args) {
+//     if (strcmp(args[0], "leaks") != 0) return 0;
+
+//     if (args[1] == NULL) {
+//         printf("Usage: leaks <PID>\n");
+//         return 1;
+//     }
+
+//     int pid = atoi(args[1]);
+//     Process *proc = get_process(pid);
+
+//     if (!proc) {
+//         printf("[Error] PID %d not found.\n", pid);
+//         return 1;
+//     }
+
+//     const char *VM_BIN = "../5.VM(ASS)withGC/bvm";
+//     char bytecode_file[256];
+//     strcpy(bytecode_file, proc->output_file);
+//     char *dot = strrchr(bytecode_file, '.');
+//     if (dot) strcpy(dot, ".byc");
+//     else strcat(bytecode_file, ".byc");
+
+//     printf("[Shell] Checking leaks for PID %d...\n", pid);
+    
+//     char cmd[1024];
+//     // Pass "leaks" flag to VM
+//     snprintf(cmd, sizeof(cmd), "'%s' %s leaks", VM_BIN, bytecode_file);
+    
+//     system(cmd);
+//     return 1;
+// }
 
 int handle_ps(char **args) {
     if (strcmp(args[0], "ps") != 0) return 0;
@@ -170,6 +274,7 @@ int handle_run(char **args) {
     return 1;
 }
 
+// --- KILL COMMAND HANDLER ---
 int handle_kill(char **args) {
     if (strcmp(args[0], "kill") != 0) return 0;
 
@@ -441,6 +546,23 @@ int main() {
             free(read);
             continue;
         }
+        // if (handle_memstat(argument_list)) {
+        //     addToHistory(trimmed_input);
+        //     free(read);
+        //     continue;
+        // }
+
+        // if (handle_gc(argument_list)) {
+        //     addToHistory(trimmed_input);
+        //     free(read);
+        //     continue;
+        // }
+
+        // if (handle_leaks(argument_list)) {
+        //     addToHistory(trimmed_input);
+        //     free(read);
+        //     continue;
+        // }
 
         int check_kill = handle_kill(argument_list);
         if (check_kill == 1) {
