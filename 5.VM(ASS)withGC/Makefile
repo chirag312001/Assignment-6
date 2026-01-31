@@ -2,7 +2,7 @@ CC      = gcc
 CFLAGS  = -std=c11 -Wall -Wextra -g
 
 ASM_SRC = assembler_c/assembler.c
-VM_SRC  = VM/vm.c VM/stack.c VM/loader.c VM/exec.c VM/include/value.c VM/include/object.c main.c
+VM_SRC  = VM/vm.c VM/stack.c VM/loader.c VM/exec.c VM/include/value.c VM/include/object.c main.c debugger/debugger.c
 
 # to test the garbage collector
 GC_TEST_SRC = VM/vm.c VM/stack.c VM/loader.c VM/exec.c VM/include/value.c VM/include/object.c VM/test.c

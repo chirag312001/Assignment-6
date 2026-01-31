@@ -280,6 +280,13 @@ int main() {
             continue;
         }
 
+        // int check_debug = handle_debug(argument_list, arg_Count);
+        // if (check_debug == 1) {
+        //     addToHistory(trimmed_input);
+        //     free(read);
+        //     continue; 
+        // }
+
         
         
 

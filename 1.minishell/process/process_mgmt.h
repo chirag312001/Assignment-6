@@ -36,5 +36,6 @@ int handle_ps(char **args);
 int handle_submit(char **args);
 int handle_run(char **args);
 int handle_kill(char **args);
+int handle_debug(char **args, int arg_count) ;
 
 #endif

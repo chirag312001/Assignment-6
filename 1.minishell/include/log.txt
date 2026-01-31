@@ -110,3 +110,17 @@ submit tests/valid/01_var_decl.txt
 run 100
 submit tests/valid/01_var_decl.txt
 run 100
+clear
+submit 01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+run 100
+history
+clear
+clear
+submit tests/valid/01_var_decl.txt
+ps
+run 100
+ps
+./bvm tests/valid/100_address_test.byc debug
+submit tests/valid/01_var_decl.txt
+run 100
