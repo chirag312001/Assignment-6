@@ -4,6 +4,7 @@
 #include "value.h"
 
 extern int no_of_object_freed;
+extern int total_objects_created;
 
 /* All heap object types */
 typedef enum {
@@ -71,7 +72,7 @@ void gc_mark_from_roots();
 void gc_sweep();
 
 // Complete garbage collection cycle
-void gc_collect();
+void gc_collect(int show_debug);
 
 
 

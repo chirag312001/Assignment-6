@@ -8,6 +8,7 @@
 #define MARK_STACK_MAX 1024
 static Obj* mark_stack[MARK_STACK_MAX];
 static int mark_stack_top = 0;
+int total_objects_created = 0;
 
 static void mark_push(Obj* o) {
     if (!o) return;
@@ -25,6 +26,7 @@ int no_of_object_freed = 0;
 void heap_register(Obj* o) {
     o->next = heap_objects;
     heap_objects = o;
+    total_objects_created++;
 }
 
 /*   ALLOCATION    */
@@ -156,7 +158,7 @@ void gc_mark_from_roots(void) {
 
 /*    SWEEP PHASE    */
 
-void gc_sweep(void) {
+void gc_sweep(int show_debug) {
     Obj** o = &heap_objects;
 
     while (*o) {
@@ -164,7 +166,12 @@ void gc_sweep(void) {
             Obj* dead = *o;
             *o = dead->next;
             no_of_object_freed++;
-            printf("[GC] freeing %p\n", (void*)dead);
+            
+            // CHANGED: Only print if flag is ON
+            if (show_debug) {
+                printf("[GC] freeing %p\n", (void*)dead);
+            }
+            
             free(dead);
         } else {
             (*o)->marked = 0; /* reset for next GC */
@@ -175,11 +182,21 @@ void gc_sweep(void) {
 
 /*    FULL GC    */
 
-void gc_collect(void) {
+void gc_collect(int show_debug) {
    
-    gc_print_heap("before mark");
+    if (show_debug) {
+        gc_print_heap("before mark");
+    }
+
     gc_mark_from_roots();
-    gc_print_heap("after mark (before sweep)");
-    gc_sweep();
-    gc_print_heap("after sweep");
+    
+    if (show_debug) {
+        gc_print_heap("after mark (before sweep)");
+    }
+
+    gc_sweep(show_debug); // Pass the flag down
+    
+    if (show_debug) {
+        gc_print_heap("after sweep");
+    }
 }

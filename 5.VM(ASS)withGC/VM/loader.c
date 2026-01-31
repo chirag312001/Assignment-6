@@ -13,7 +13,12 @@ static int valid_opcode(unsigned char op) {
         case 0x11:
         case 0x12:
         case 0x13:
-        case 0x14:
+        case 0x14: // EQ
+        case 0x15: // NEQ
+        case 0x16: // LT
+        case 0x17: // GT
+        case 0x18: // LE
+        case 0x19: // GE
         case 0x20:
         case 0x21:
         case 0x22:

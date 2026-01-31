@@ -5,6 +5,8 @@
 
 Program *current_program = NULL;
 
+
+
 void vm_init(Program *p, unsigned char *code, int size) {
     current_program = p;
     p->code = code;

@@ -51,7 +51,12 @@ int lookup_opcode(char *m, unsigned char *op) {
     else if (strcmp(m, "SUB") == 0) *op = 0x11;
     else if (strcmp(m, "MUL") == 0) *op = 0x12;
     else if (strcmp(m, "DIV") == 0) *op = 0x13;
-    else if (strcmp(m, "CMP") == 0) *op = 0x14;
+    else if (strcmp(m, "EQ")  == 0) *op = 0x14;
+    else if (strcmp(m, "NEQ") == 0) *op = 0x15;
+    else if (strcmp(m, "LT")  == 0) *op = 0x16;
+    else if (strcmp(m, "GT")  == 0) *op = 0x17;
+    else if (strcmp(m, "LE")  == 0) *op = 0x18;
+    else if (strcmp(m, "GE")  == 0) *op = 0x19;
 
     else if (strcmp(m, "JMP") == 0) *op = 0x20;
     else if (strcmp(m, "JZ")  == 0) *op = 0x21;
