@@ -23,3 +23,40 @@ submit tests/valid/01_var_decl.txt
 submit tests/valid/01_var_decl.txt
 history
 clear
+ps
+submit tests/valid/01_var_decl.txt 1
+run 100
+ps
+submit tests/valid/01_var_decl.txt 1
+ps
+clear
+ps
+submit tests/valid/01_var_decl.txt
+ps
+run 100
+submit 01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+run 100
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+ps
+run 101
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+kill 101
+ps
+run 100
+submit tests/valid/01_var_decl.txt
+ps
+run 100
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+ps
+kill 100
+kill 101
+run 102
+ps
+run 102
+ps
+clear

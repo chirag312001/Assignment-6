@@ -1,5 +1,5 @@
 CC = gcc
-# ADDED -I../3.lexor/build so it can find parser.tab.h
+# CFLAGS for Shell (Includes Lexer build paths)
 CFLAGS = -O3 -I../3.lexor/src -I../3.lexor/build -Iinclude -Wno-unused-result
 
 # Directories
@@ -7,46 +7,64 @@ SHELL_DIR = .
 LEXOR_DIR = ../3.lexor/src
 LEXOR_BUILD = ../3.lexor/build
 
-# Source Files
-SHELL_SRCS = mini-shell.c include/tokenizer.c include/execute.c include/parser.c include/history.c
+# Path to the VM Project
+# NOTE: The parentheses here cause issues if not quoted later!
+VM_DIR = ../5.VM(ASS)withGC
 
-# Lexer Source Files -- ADDED ir.c HERE
+# --- SHELL SOURCES ---
+SHELL_SRCS = mini-shell.c include/tokenizer.c include/execute.c include/parser.c include/history.c process/process_mgmt.c
+
+# --- LEXER SOURCES ---
 LEXOR_SRCS = $(LEXOR_DIR)/main.c $(LEXOR_DIR)/ast.c $(LEXOR_DIR)/eval.c $(LEXOR_DIR)/symtab.c $(LEXOR_DIR)/ir.c
 
-# Generated Files (Bison/Flex)
+# --- OUTPUT FILES ---
+TARGET_SHELL = mini-shell
+
+# --- BISON/FLEX ---
 BISON_SRC = $(LEXOR_DIR)/parser.y
 FLEX_SRC = $(LEXOR_DIR)/lexer.l
 BISON_C = $(LEXOR_BUILD)/parser.tab.c
 BISON_H = $(LEXOR_BUILD)/parser.tab.h
 FLEX_C = $(LEXOR_BUILD)/lex.yy.c
 
-# Final Output
-TARGET = mini-shell
+# --- BUILD RULES ---
 
-all: $(TARGET)
+.PHONY: all clean vm_build
 
-# 1. Create Build Dir for Lexer
+# Main Target: Build Shell AND call the VM Makefile
+all: $(TARGET_SHELL) vm_build
+
+# 1. Recursive Make: Go to VM_DIR and run 'make'
+# FIX: Added quotes around "$(VM_DIR)" to handle parentheses in folder name
+vm_build:
+	@echo "--- Building VM and Assembler ---"
+	$(MAKE) -C "$(VM_DIR)"
+
+# 2. Create Build Dir for Lexer
 $(LEXOR_BUILD):
 	mkdir -p $(LEXOR_BUILD)
 
-# 2. Run Bison (Generates .c and .h)
+# 3. Run Bison
 $(BISON_C) $(BISON_H): $(BISON_SRC) | $(LEXOR_BUILD)
 	bison -d -o $(BISON_C) $(BISON_SRC)
 
-# 3. Run Flex (Depends on Bison Header)
+# 4. Run Flex
 $(FLEX_C): $(FLEX_SRC) $(BISON_H) | $(LEXOR_BUILD)
 	flex -o $(FLEX_C) $(FLEX_SRC)
 
-# 4. Compile EVERYTHING
-# We compile the Shell files, Lexer files, and the generated Bison/Flex files together.
-# The CFLAGS includes the build dir so 'eval.c' can find 'parser.tab.h'.
-$(TARGET): $(BISON_C) $(FLEX_C) $(SHELL_SRCS) $(LEXOR_SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) \
+# 5. Compile Mini-Shell
+$(TARGET_SHELL): $(BISON_C) $(FLEX_C) $(SHELL_SRCS) $(LEXOR_SRCS)
+	@echo "--- Building Mini-Shell ---"
+	$(CC) $(CFLAGS) -o $(TARGET_SHELL) \
 		$(SHELL_SRCS) \
 		$(LEXOR_SRCS) \
 		$(BISON_C) \
 		$(FLEX_C)
 
+# --- CLEAN ---
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET_SHELL)
 	rm -rf $(LEXOR_BUILD)
+	@echo "--- Cleaning VM Project ---"
+	# FIX: Added quotes here too
+	$(MAKE) -C "$(VM_DIR)" clean

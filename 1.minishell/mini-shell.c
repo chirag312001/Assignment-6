@@ -24,7 +24,19 @@ void getCurrDir(char *buffer, size_t size);
 int tokenize(const char *line, char *tokens[], int max_tokens);
 void free_tokens(char *tokens[], int count);
 
-//this handles the submmit cmd
+
+
+
+
+
+
+int handle_ps(char **args) {
+    if (strcmp(args[0], "ps") != 0) return 0;
+    print_process_list(); // Defined in process_mgmt.c
+    return 1;
+}
+
+// --- SUBMIT COMMAND HANDLER ---
 int handle_submit(char **args) {
     if (strcmp(args[0], "submit") != 0) return 0;
 
@@ -33,37 +45,170 @@ int handle_submit(char **args) {
         return 1;
     }
 
-
-    // 1. Create Process Entry
-    int pid = create_process(args[1]);
-    if (pid == -1) return 1;
-
-    // 1. Resolve path (optional, but good practice)
-    char input_file[4096];
-    if (realpath(args[1], input_file) == NULL) {
+    // 1. Resolve absolute path (Good practice!)
+    char full_input_path[4096];
+    if (realpath(args[1], full_input_path) == NULL) {
         perror("Error finding file");
         return 1;
     }
 
-    // 2. Assign PID (Mock logic as requested)
-    // Find empty slot logic here...
-    // printf("Compiling %s...\n", input_file);
+    // 2. Create Process Entry
+    // We pass the simple name to the process table for display purposes
+    int pid = create_process(args[1]); 
+    if (pid == -1) {
+        printf("[Failed] Process table full.\n");
+        return 1;
+    }
 
-    printf("Submitting %s to parser...\n", args[1]);
+    Process *proc = get_process(pid);
+    printf("Process created with PID: %d\n", pid);
+    printf("Submitting %s to parser...\n", full_input_path);
 
-    // 3. CALL THE FUNCTION DIRECTLY
-    // We pass 0 for do_eval (equivalent to --no-eval)
-    int result = run_parser(input_file, 0); 
+    // 3. CALL THE PARSER
+    // run_parser generates "output.asm" in the current directory
+    // We pass 0 for do_eval (compile only)
+    int result = run_parser(full_input_path, 0); 
 
     if (result == 0) {
-        printf("[Success] AST Generated.\n");
-        // Update process table state to SUBMITTED...
+        // --- SUCCESS LOGIC ---
+        
+        // A. Rename the generic output to the specific output file
+        // (e.g., rename "output.asm" to "test.asm")
+        if (rename("output.asm", proc->output_file) != 0) {
+            perror("[Warning] Could not rename output.asm");
+            // If rename fails, we still mark it submitted but warn the user
+        }
+
+        // B. Update Process State
+        update_process_state(pid, STATE_SUBMITTED);
+        
+        printf("[Success] AST Generated & ASM Written to '%s'.\n", proc->output_file);
+        printf("Ready to run. Type: run %d\n", pid);
+
     } else {
-        printf("[Failed] Syntax errors found.\n");
+        // --- FAILURE LOGIC ---
+        update_process_state(pid, STATE_FAILED);
+        printf("[Failed] Syntax errors found. Process marked FAILED.\n");
     }
 
     return 1;
 }
+
+// --- RUN COMMAND HANDLER ---
+int handle_run(char **args) {
+    if (strcmp(args[0], "run") != 0) return 0;
+
+    if (args[1] == NULL) {
+        printf("Usage: run <PID>\n");
+        return 1;
+    }
+
+    // 1. Look up process
+    int pid = atoi(args[1]);
+    Process *proc = get_process(pid);
+
+    if (!proc) {
+        printf("[Error] PID %d not found.\n", pid);
+        return 1;
+    }
+
+    if (proc->status != STATE_SUBMITTED && proc->status != STATE_TERMINATED) {
+        printf("[Error] Process not ready. Status: %d. (Did you submit it?)\n", proc->status);
+        return 1;
+    }
+
+    // 2. Define Executable Paths (Relative to mini-shell folder)
+    // NOTE: We use single quotes '' around paths to handle the parentheses in "(ASS)"
+    const char *ASSEMBLER_BIN = "../5.VM(ASS)withGC/assembler";
+    const char *VM_BIN        = "../5.VM(ASS)withGC/bvm";
+
+    // 3. Construct Bytecode Filename (test.asm -> test.byc)
+    char bytecode_file[256];
+    strcpy(bytecode_file, proc->output_file);
+    char *dot = strrchr(bytecode_file, '.');
+    if (dot) {
+        strcpy(dot, ".byc");
+    } else {
+        strcat(bytecode_file, ".byc");
+    }
+
+    // 4. STEP A: Run Assembler
+    // Command: "../5.VM.../assembler" "test.asm" "test.byc"
+    char cmd[1024];
+    printf("[Shell] Assembling '%s' -> '%s'...\n", proc->output_file, bytecode_file);
+    
+    // We quote the executable path to handle special characters like '(' in directory names
+    snprintf(cmd, sizeof(cmd), "'%s' %s %s", ASSEMBLER_BIN, proc->output_file, bytecode_file);
+    
+    int asm_ret = system(cmd);
+    if (asm_ret != 0) {
+        printf("[Shell] Assembly Failed. (Check if assembler path is correct)\n");
+        update_process_state(pid, STATE_FAILED);
+        return 1;
+    }
+
+    // 5. STEP B: Run VM
+    // Command: "../5.VM.../bvm" "test.byc"
+    printf("[Shell] Starting VM for PID %d...\n", pid);
+    printf("--------------------------------------------------\n");
+    
+    update_process_state(pid, STATE_RUNNING);
+    
+    snprintf(cmd, sizeof(cmd), "'%s' %s", VM_BIN, bytecode_file);
+    int vm_ret = system(cmd);
+    
+    printf("--------------------------------------------------\n");
+
+    if (vm_ret == 0) {
+        printf("[Shell] Process %d Finished Successfully.\n", pid);
+        update_process_state(pid, STATE_TERMINATED);
+    } else {
+        printf("[Shell] Process %d Crashed or Returned Error.\n", pid);
+        update_process_state(pid, STATE_FAILED);
+    }
+
+    return 1;
+}
+
+int handle_kill(char **args) {
+    if (strcmp(args[0], "kill") != 0) return 0;
+
+    if (args[1] == NULL) {
+        printf("Usage: kill <PID>\n");
+        return 1;
+    }
+
+    int pid = atoi(args[1]);
+    Process *proc = get_process(pid);
+
+    if (!proc) {
+        printf("[Error] PID %d not found.\n", pid);
+        return 1;
+    }
+
+    // 1. Delete .asm file
+    if (remove(proc->output_file) == 0) {
+        printf("[Kill] Deleted %s\n", proc->output_file);
+    }
+
+    // 2. Delete .byc file
+    char bytecode_file[256];
+    strcpy(bytecode_file, proc->output_file);
+    char *dot = strrchr(bytecode_file, '.');
+    if (dot) strcpy(dot, ".byc");
+    else strcat(bytecode_file, ".byc");
+
+    if (remove(bytecode_file) == 0) {
+        printf("[Kill] Deleted %s\n", bytecode_file);
+    }
+
+    // 3. Free Process Table Entry
+    delete_process(pid);
+    printf("[Kill] Process %d terminated and removed from table.\n", pid);
+
+    return 1;
+}
+
 
 
 
@@ -281,6 +426,27 @@ int main() {
             addToHistory(trimmed_input);
             free(read);
             continue; // Skip the rest of the loop (execvp, etc.)
+        }
+
+        int check_ps = handle_ps(argument_list);
+        if (check_ps == 1) {
+            addToHistory(trimmed_input);
+            free(read);
+            continue;
+        }
+
+        int check_run = handle_run(argument_list);
+        if (check_run == 1) {
+            addToHistory(trimmed_input);
+            free(read);
+            continue;
+        }
+
+        int check_kill = handle_kill(argument_list);
+        if (check_kill == 1) {
+            addToHistory(trimmed_input);
+            free(read);
+            continue;
         }
 
         

@@ -31,5 +31,6 @@ int create_process(char *input_filename);
 Process* get_process(int pid);
 void update_process_state(int pid, ProcessStatus new_state);
 void print_process_list();
+void delete_process(int pid);
 
 #endif
