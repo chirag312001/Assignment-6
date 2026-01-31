@@ -77,3 +77,36 @@ run 100
 clear
 submit tests/valid/01_var_decl.txt
 run 100
+submit tests/valid/01_var_decl.txt
+run 100
+clear
+clear
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+run 101
+kill 100
+ps
+kill 101
+kill 102
+kill100
+kill 100
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+kil 100
+kill 100
+kill 101
+kill 102
+kill 103
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt 1
+run 100
+submit tests/valid/01_var_decl.txt 0
+run 100
+clear
+submit tests/valid/01_var_decl.txt
+run 100
+submit tests/valid/01_var_decl.txt
+run 100
