@@ -189,7 +189,32 @@ void debug_start(Program *p) {
 
             list_code(p);
 
-        }else if (strcmp(cmd, "exit") == 0) 
+        }else if (strcmp(cmd, "exit") == 0){
+            printf("Exiting debugger.\n");
             break;
+        }
+        else if (strcmp(cmd, "memstat") == 0) {
+            // These externs should point to your GC variables in vm.c or gc.c
+            extern int total_objects_created;
+            extern int no_of_object_freed;
+            printf("--- Heap Report ---\n");
+            printf("Objects Created: %d\n", total_objects_created);
+            printf("Objects Freed:   %d\n", no_of_object_freed);
+            printf("Live on Heap:    %d\n", total_objects_created - no_of_object_freed);
+        } 
+        else if (strcmp(cmd, "gc") == 0) {
+            printf("Triggering Garbage Collection...\n");
+            // gc_collect(prog); // Pass your program/VM state to the GC
+        }
+        else if (strcmp(cmd, "leaks") == 0) {
+            // Logic to check if anything is reachable that shouldn't be
+            // Usually a simple count of live objects at the end of execution
+            extern int total_objects_created;
+            extern int no_of_object_freed;
+            printf("Potential Leaks: %d objects\n", total_objects_created - no_of_object_freed);
+        }
+        else {
+            printf("Unknown command: %s\n", cmd);
+        }
     }
 }
