@@ -146,3 +146,9 @@ submit tests/valid/01_var_decl.txt
 run 100
 submit ./tests/valid/01_var_decl.txt
 run 100
+submit ./tests/valid/01_var_decl.txt
+ps
+kill 100
+ps
+submit tests/valid/01_var_decl.txt
+clear
