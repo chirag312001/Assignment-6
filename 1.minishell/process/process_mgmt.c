@@ -1,9 +1,15 @@
 #include "process_mgmt.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <libgen.h> // Required for basename() and dirname()
+
 #include "../../3.lexor/src/lab_parser.h" // For run_parser
+#include "../../5.VM(ASS)withGC/debugger/debugger.h"
+#include "../../5.VM(ASS)withGC/VM/loader.h"
 
 Process process_table[MAX_PROCESSES];
 int next_pid = 100; // Start PIDs at 100
@@ -91,6 +97,14 @@ int create_process(char *filename){
         strcat(p->output_file, ".asm");
     }
 
+    snprintf(p->bytecode_file, 255, "%s/%d_%s", dir, p->pid, base);
+    dot = strrchr(p->bytecode_file, '.');
+    if (dot) {
+        strcpy(dot, ".byc");
+    } else {
+        strcat(p->bytecode_file, ".byc");
+    }
+
     return p->pid;
 }
 
@@ -111,27 +125,47 @@ void update_process_state(int pid, ProcessStatus new_state) {
 }
 
 void print_process_list() {
-    printf("\n%-5s %-15s %-20s %-20s\n", "PID", "STATUS", "INPUT", "OUTPUT");
-    printf("----------------------------------------------------------------\n");
+    printf("\n%-5s %-12s %-18s %-18s %-18s\n", "PID", "STATUS", "INPUT", "ASM", "BYC");
+    printf("--------------------------------------------------------------------------------------\n");
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].status != STATE_NONE) {
-            const char *status_str = "UNKNOWN";
-            switch(process_table[i].status) {
-                case STATE_SUBMITTED: status_str = "SUBMITTED"; break;
-                case STATE_RUNNING:   status_str = "RUNNING"; break;
-                case STATE_PAUSED:    status_str = "PAUSED"; break;
-                case STATE_TERMINATED:status_str = "TERMINATED"; break;
-                case STATE_FAILED:    status_str = "FAILED"; break;
-                default: break;
-            }
-            printf("%-5d %-15s %-20s %-20s\n", 
-                process_table[i].pid, status_str, 
-                process_table[i].input_file, process_table[i].output_file);
+            const char *s = "UNKNOWN";
+            if(process_table[i].status == STATE_SUBMITTED) s = "SUBMITTED";
+            else if(process_table[i].status == STATE_RUNNING) s = "RUNNING";
+            else if(process_table[i].status == STATE_TERMINATED) s = "FINISHED";
+            else if(process_table[i].status == STATE_FAILED) s = "FAILED";
+            
+            printf("%-5d %-12s %-18s %-18s %-18s\n", 
+                process_table[i].pid, s, 
+                process_table[i].input_file, 
+                process_table[i].output_file,
+                process_table[i].bytecode_file);
         }
     }
-    printf("\n");
 }
 
+
+
+//signal handler
+// zommbie process clean up handler, WNOHANG is wait no hang
+void handle_zoombi(){
+    int pid;
+    
+    while((pid = waitpid(-1, NULL, WNOHANG)) > 0){
+        
+    }
+    
+}
+
+void sigint_handle(int sig) {
+
+    write(STDOUT_FILENO, "\n", 1);
+
+    char curr_working_dir[4000];
+    getCurrDir(curr_working_dir, sizeof(curr_working_dir));
+
+
+}
 
 
 //code --- PS COMMAND HANDLER ---
@@ -217,49 +251,41 @@ int handle_run(char **args) {
         return 1;
     }
 
-    if (proc->status != STATE_SUBMITTED && proc->status != STATE_TERMINATED) {
-        printf("[Error] Process not ready. Status: %d. (Did you submit it?)\n", proc->status);
+    // Check status (Allowing SUBMITTED, TERMINATED, or FAILED for a retry)
+    if (proc->status == STATE_NONE || proc->status == STATE_RUNNING) {
+        printf("[Error] Process not ready. Status: %d.\n", proc->status);
         return 1;
     }
 
-    // 2. Define Executable Paths (Relative to mini-shell folder)
-    // NOTE: We use single quotes '' around paths to handle the parentheses in "(ASS)"
+    // 2. Define Executable Paths
     const char *ASSEMBLER_BIN = "../5.VM(ASS)withGC/assembler";
     const char *VM_BIN        = "../5.VM(ASS)withGC/bvm";
 
-    // 3. Construct Bytecode Filename (test.asm -> test.byc)
-    char bytecode_file[256];
-    strcpy(bytecode_file, proc->output_file);
-    char *dot = strrchr(bytecode_file, '.');
-    if (dot) {
-        strcpy(dot, ".byc");
-    } else {
-        strcat(bytecode_file, ".byc");
-    }
-
-    // 4. STEP A: Run Assembler
-    // Command: "../5.VM.../assembler" "test.asm" "test.byc"
     char cmd[1024];
-    printf("[Shell] Assembling '%s' -> '%s'...\n", proc->output_file, bytecode_file);
+
+    // 3. STEP A: Run Assembler
+    // Input: proc->output_file (.asm) | Output: proc->bytecode_file (.byc)
+    printf("[Shell] Assembling '%s' -> '%s'...\n", proc->output_file, proc->bytecode_file);
     
-    // We quote the executable path to handle special characters like '(' in directory names
-    snprintf(cmd, sizeof(cmd), "'%s' %s %s", ASSEMBLER_BIN, proc->output_file, bytecode_file);
+    // Use single quotes around paths to handle the () in the folder name
+    snprintf(cmd, sizeof(cmd), "'%s' '%s' '%s'", 
+             ASSEMBLER_BIN, proc->output_file, proc->bytecode_file);
     
     int asm_ret = system(cmd);
     if (asm_ret != 0) {
-        printf("[Shell] Assembly Failed. (Check if assembler path is correct)\n");
+        printf("[Shell] Assembly Failed.\n");
         update_process_state(pid, STATE_FAILED);
         return 1;
     }
 
-    // 5. STEP B: Run VM
-    // Command: "../5.VM.../bvm" "test.byc"
+    // 4. STEP B: Run VM
     printf("[Shell] Starting VM for PID %d...\n", pid);
     printf("--------------------------------------------------\n");
     
     update_process_state(pid, STATE_RUNNING);
     
-    snprintf(cmd, sizeof(cmd), "'%s' %s", VM_BIN, bytecode_file);
+    // Pass the .byc file to the VM
+    snprintf(cmd, sizeof(cmd), "'%s' '%s'", VM_BIN, proc->bytecode_file);
     int vm_ret = system(cmd);
     
     printf("--------------------------------------------------\n");
@@ -315,3 +341,63 @@ int handle_kill(char **args) {
     return 1;
 }
 
+
+
+// debugger integration 
+void debug_program(int pid) {
+    Process *proc = get_process(pid);
+    if (!proc) {
+        printf("Shell Error: PID %d not found.\n", pid);
+        return;
+    }
+
+    pid_t child_pid = fork();
+
+    if (child_pid == 0) {
+        /* --- CHILD PROCESS (The Debugger) --- */
+        signal(SIGINT, SIG_DFL);
+        // signal(SIGQUIT, SIG_DFL);
+
+        // 1. Run the Assembler before starting the debugger
+        // We now use both proc->output_file (.asm) and proc->bytecode_file (.byc)
+        char assemble_cmd[1024];
+        sprintf(assemble_cmd, "'../5.VM(ASS)withGC/assembler' '%s' '%s'", 
+                proc->output_file, proc->bytecode_file);
+
+        printf("[Debugger] Syncing: Assembling %s -> %s...\n", 
+                proc->output_file, proc->bytecode_file);
+
+        // Execute assembly. system() returns 0 on success.
+        if (system(assemble_cmd) != 0) {
+            fprintf(stderr, "Debugger Error: Assembly failed. Check if path/file exists.\n");
+            exit(1);
+        }
+
+        // 2. Load the freshly generated bytecode directly from the struct
+        int size = 0;
+        unsigned char *code = load_bytecode(proc->bytecode_file, &size);
+        if (!code) {
+            fprintf(stderr, "Debugger Error: Could not load bytecode file %s\n", proc->bytecode_file);
+            exit(1);
+        }
+
+        // 3. Initialize VM and start
+        Program prog;
+        vm_init(&prog, code, size);
+        debug_start(&prog);
+
+        vm_free(&prog);
+        exit(0); 
+
+    } else if (child_pid > 0) {
+        /* --- PARENT PROCESS (The Shell) --- */
+        signal(SIGINT, SIG_IGN);
+        waitpid(child_pid, NULL, 0);
+        signal(SIGCHLD, handle_zoombi);
+        signal(SIGINT, sigint_handle); 
+
+        printf("[Shell] Debug session for PID %d ended.\n", pid);
+    } else {
+        perror("Fork failed");
+    }
+}

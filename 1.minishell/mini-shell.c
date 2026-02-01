@@ -280,6 +280,16 @@ int main() {
             continue;
         }
 
+        if (strcmp(argument_list[0], "debug") == 0) {
+            if (arg_Count < 2) {
+                printf("Usage: debug <pid>\n");
+            } else {
+                int pid_to_debug = atoi(argument_list[1]);
+                debug_program(pid_to_debug);
+            }
+            continue; // Return to shell prompt
+        }
+
         // int check_debug = handle_debug(argument_list, arg_Count);
         // if (check_debug == 1) {
         //     addToHistory(trimmed_input);

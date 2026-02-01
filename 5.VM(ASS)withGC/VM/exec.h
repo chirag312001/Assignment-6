@@ -5,6 +5,7 @@
 
 
 void vm_run(Program *p);
+int vm_step(Program *p);
 
 
 #endif
