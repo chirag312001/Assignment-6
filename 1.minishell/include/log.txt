@@ -152,3 +152,24 @@ kill 100
 ps
 submit tests/valid/01_var_decl.txt
 clear
+submit tests/valid/01_var_decl.txt
+ps
+submit tests/valid/01_var_decl.txt
+clea
+clear
+submit tests/valid/01_var_decl.txt
+ps
+submit tests/valid/01_var_decl.txt
+clear
+ps
+submit 01_var_decl.txt
+PUSH 0		; Address 0
+submit tests/valid/01_var_decl.txt
+ps
+m
+submit ./tests/valid/01_var_decl.txt
+submit ./tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
+clear
+submit tests/valid/01_var_decl.txt
+submit tests/valid/01_var_decl.txt
