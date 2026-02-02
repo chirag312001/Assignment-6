@@ -4,6 +4,7 @@
 #include "vm.h"
 
 /*    MARK STACK (ITERATIVE GC)   */
+int stack_object_count = 0;
 
 #define MARK_STACK_MAX 1024
 static Obj* mark_stack[MARK_STACK_MAX];
@@ -137,7 +138,7 @@ static void gc_print_heap(const char* phase) {
 
 /*    MARK PHASE    */
 
-static void gc_mark(Obj* root) {
+void gc_mark(Obj* root) {
     if (!root) return;
 
     mark_stack_top = 0;
@@ -148,8 +149,13 @@ static void gc_mark(Obj* root) {
         if (o->marked) continue;
 
         o->marked = 1;
+        stack_object_count++;
         obj_visit_children(o, mark_push);
     }
+}
+
+void checkstack(){
+    gc_mark_from_roots();  
 }
 
 void gc_mark_from_roots(void) {
@@ -178,6 +184,7 @@ void gc_sweep(int show_debug) {
             o = &(*o)->next;
         }
     }
+    stack_object_count = 0;
 }
 
 /*    FULL GC    */
@@ -199,4 +206,8 @@ void gc_collect(int show_debug) {
     if (show_debug) {
         gc_print_heap("after sweep");
     }
+}
+
+void gc_start(){
+    gc_collect(0);
 }

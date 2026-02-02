@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "debugger.h"
+#include "../VM/include/object.h"
 #include "../VM/exec.h"
 
 #define MAX_BPS 32
@@ -192,28 +193,74 @@ void debug_start(Program *p) {
         }else if (strcmp(cmd, "exit") == 0){
             printf("Exiting debugger.\n");
             break;
-        }
-        else if (strcmp(cmd, "memstat") == 0) {
-            // These externs should point to your GC variables in vm.c or gc.c
+        }else if (strcmp(cmd, "memstat") == 0) {
+            // varaible sare already decalred in object.h
+
             extern int total_objects_created;
             extern int no_of_object_freed;
+            extern int stack_object_count;
+            
+            checkstack();
+
+            
             printf("--- Heap Report ---\n");
             printf("Objects Created: %d\n", total_objects_created);
-            printf("Objects Freed:   %d\n", no_of_object_freed);
+            printf("Objects to be Freed:   %d\n", total_objects_created - stack_object_count - no_of_object_freed);
             printf("Live on Heap:    %d\n", total_objects_created - no_of_object_freed);
+            printf("Live on Stack:   %d\n", stack_object_count);
+            printf("no of objrct freed till now: %d\n", no_of_object_freed);
+            printf("-------------------\n");
+
+
+            
         } 
         else if (strcmp(cmd, "gc") == 0) {
+
+
+            extern int no_of_object_freed; 
+            //  Record how many were freed BEFORE we start
+            int count_before = no_of_object_freed; 
+            
             printf("Triggering Garbage Collection...\n");
-            // gc_collect(prog); // Pass your program/VM state to the GC
-        }
-        else if (strcmp(cmd, "leaks") == 0) {
-            // Logic to check if anything is reachable that shouldn't be
-            // Usually a simple count of live objects at the end of execution
+            
+           
+            gc_start(); 
+            
+            // Calculate the DIFFERENCE
+            int just_freed = no_of_object_freed - count_before;
+            
+            printf("Objects actually reclaimed: %d\n", just_freed);
+            printf("Garbage Collection complete.\n");
+
+
+
+        }else if (strcmp(cmd, "leaks") == 0) {
+
+
+
             extern int total_objects_created;
             extern int no_of_object_freed;
-            printf("Potential Leaks: %d objects\n", total_objects_created - no_of_object_freed);
-        }
-        else {
+            extern int stack_object_count;
+            
+            // Ensure the stack count is fresh
+            checkstack(); 
+
+            int live_heap = total_objects_created - no_of_object_freed;
+            int unreachable = live_heap - stack_object_count;
+
+
+            printf("--- Leak Analysis ---\n");
+            if (unreachable > 0) {
+                printf("Unreachable Objects: %d\n", unreachable);
+                printf("Note: These are objects in the heap with no stack references.\n");
+                printf("Run 'gc' to reclaim this memory.\n");
+            } else {
+                printf("No leaks detected. All heap objects are reachable from the stack.\n");
+            }
+
+
+
+        }else {
             printf("Unknown command: %s\n", cmd);
         }
     }

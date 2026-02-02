@@ -5,6 +5,7 @@
 
 extern int no_of_object_freed;
 extern int total_objects_created;
+extern int stack_object_count;
 
 /* All heap object types */
 typedef enum {
@@ -54,6 +55,7 @@ void heap_register(Obj* o);
 /* Allocation */
 ObjPair* new_pair(Value l, Value r);
 ObjInt  *new_int(int value);
+void checkstack();
 
 
 /* graph creation from list(heap) .*/
@@ -73,7 +75,7 @@ void gc_sweep();
 
 // Complete garbage collection cycle
 void gc_collect(int show_debug);
-
+void gc_start();
 
 
 
