@@ -173,3 +173,7 @@ submit tests/valid/01_var_decl.txt
 clear
 submit tests/valid/01_var_decl.txt
 submit tests/valid/01_var_decl.txt
+submit tests/valid/10_complex.txt
+run 100
+clear
+submit tests/valid/01_var_decl.txt

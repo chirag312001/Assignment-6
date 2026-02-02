@@ -20,8 +20,6 @@
 char *buffer[HistorySize];
 int buf_count = 0;
 
-void getCurrDir(char *buffer, size_t size);
-
 int tokenize(const char *line, char *tokens[], int max_tokens);
 void free_tokens(char *tokens[], int count);
 

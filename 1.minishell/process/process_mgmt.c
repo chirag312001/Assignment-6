@@ -7,7 +7,7 @@
 #include <signal.h>
 #include <libgen.h> // Required for basename() and dirname()
 
-#include "../../3.lexor/src/lab_parser.h" // For run_parser
+#include "../../3.lexor/src/lab_parser.h" 
 #include "../../5.VM(ASS)withGC/debugger/debugger.h"
 #include "../../5.VM(ASS)withGC/VM/loader.h"
 
@@ -33,7 +33,7 @@ void init_process_table() {
     }
 }
 
-// NOTE: This helper is no longer used by create_process but kept if needed elsewhere.
+
 void generate_output_name(const char *input, char *output) {
     strcpy(output, input);
     char *dot = strrchr(output, '.');
@@ -45,7 +45,7 @@ void generate_output_name(const char *input, char *output) {
 }
 
 int create_process(char *filename){
-    // 1. Find free slot
+    //check for free slot
     int slot = -1;
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].status == STATE_NONE) {
@@ -59,17 +59,17 @@ int create_process(char *filename){
         return -1;
     }
 
-    // 2. Initialize Process
+    // Initialize Process
     Process *p = &process_table[slot];
     p->pid = next_pid++;
     p->status = STATE_SUBMITTED; 
     p->exit_code = 0;
 
-    // 3. Set Input Path
+    // Set Input Path
     strncpy(p->input_file, filename, 255);
 
-    // 4. GENERATE OUTPUT FILENAME WITH PATH
-    // Goal: "tests/valid/math.txt" -> "tests/valid/100_math.asm"
+    // GENERATE OUTPUT FILENAME WITH PATH
+    // "tests/valid/math.txt" -> "tests/valid/100_math.asm"
 
     // We make separate copies because dirname/basename can modify the string
     char path_copy_dir[1024];
@@ -184,14 +184,14 @@ int handle_submit(char **args) {
         return 1;
     }
 
-    // 1. Resolve absolute path (Good practice!)
+    // Resolve absolute path (Good practice!)
     char full_input_path[4096];
     if (realpath(args[1], full_input_path) == NULL) {
         perror("Error finding file");
         return 1;
     }
 
-    // 2. Create Process Entry
+    //Create Process Entry
     // We pass the simple name to the process table for display purposes
     int pid = create_process(args[1]); 
     if (pid == -1) {
@@ -203,7 +203,7 @@ int handle_submit(char **args) {
     printf("Process created with PID: %d\n", pid);
     printf("Submitting %s to parser...\n", full_input_path);
 
-    // 3. CALL THE PARSER
+    // CALL THE PARSER
     // run_parser generates "output.asm" in the current directory
     // We pass 0 for do_eval (compile only)
     int result = run_parser(full_input_path, 0); 
@@ -211,14 +211,14 @@ int handle_submit(char **args) {
     if (result == 0) {
         // --- SUCCESS LOGIC ---
         
-        // A. Rename the generic output to the specific output file
+        // Rename the generic output to the specific output file
         // (e.g., rename "output.asm" to "test.asm")
         if (rename("output.asm", proc->output_file) != 0) {
             perror("[Warning] Could not rename output.asm");
             // If rename fails, we still mark it submitted but warn the user
         }
 
-        // B. Update Process State
+        // Update Process State
         update_process_state(pid, STATE_SUBMITTED);
         
         printf("[Success] AST Generated & ASM Written to '%s'.\n", proc->output_file);
@@ -242,7 +242,7 @@ int handle_run(char **args) {
         return 1;
     }
 
-    // 1. Look up process
+    // Look up process
     int pid = atoi(args[1]);
     Process *proc = get_process(pid);
 
@@ -257,13 +257,13 @@ int handle_run(char **args) {
         return 1;
     }
 
-    // 2. Define Executable Paths
+    // Define Executable Paths
     const char *ASSEMBLER_BIN = "../5.VM(ASS)withGC/assembler";
     const char *VM_BIN        = "../5.VM(ASS)withGC/bvm";
 
     char cmd[1024];
 
-    // 3. STEP A: Run Assembler
+    // STEP A: Run Assembler
     // Input: proc->output_file (.asm) | Output: proc->bytecode_file (.byc)
     printf("[Shell] Assembling '%s' -> '%s'...\n", proc->output_file, proc->bytecode_file);
     
@@ -278,7 +278,7 @@ int handle_run(char **args) {
         return 1;
     }
 
-    // 4. STEP B: Run VM
+    // STEP B: Run VM
     printf("[Shell] Starting VM for PID %d...\n", pid);
     printf("--------------------------------------------------\n");
     
@@ -318,12 +318,12 @@ int handle_kill(char **args) {
         return 1;
     }
 
-    // 1. Delete .asm file
+    // Delete .asm file
     if (remove(proc->output_file) == 0) {
         printf("[Kill] Deleted %s\n", proc->output_file);
     }
 
-    // 2. Delete .byc file
+    // Delete .byc file
     char bytecode_file[256];
     strcpy(bytecode_file, proc->output_file);
     char *dot = strrchr(bytecode_file, '.');
@@ -334,7 +334,7 @@ int handle_kill(char **args) {
         printf("[Kill] Deleted %s\n", bytecode_file);
     }
 
-    // 3. Free Process Table Entry
+    // Free Process Table Entry
     delete_process(pid);
     printf("[Kill] Process %d terminated and removed from table.\n", pid);
 
@@ -358,7 +358,7 @@ void debug_program(int pid) {
         signal(SIGINT, SIG_DFL);
         // signal(SIGQUIT, SIG_DFL);
 
-        // 1. Run the Assembler before starting the debugger
+        // Run the Assembler before starting the debugger
         // We now use both proc->output_file (.asm) and proc->bytecode_file (.byc)
         char assemble_cmd[1024];
         sprintf(assemble_cmd, "'../5.VM(ASS)withGC/assembler' '%s' '%s'", 
@@ -373,7 +373,7 @@ void debug_program(int pid) {
             exit(1);
         }
 
-        // 2. Load the freshly generated bytecode directly from the struct
+        // Load the freshly generated bytecode directly from the struct
         int size = 0;
         unsigned char *code = load_bytecode(proc->bytecode_file, &size);
         if (!code) {
@@ -381,7 +381,7 @@ void debug_program(int pid) {
             exit(1);
         }
 
-        // 3. Initialize VM and start
+        // Initialize VM and start
         Program prog;
         vm_init(&prog, code, size);
         debug_start(&prog);

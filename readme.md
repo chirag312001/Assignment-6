@@ -1,79 +1,87 @@
-# Integrated Debugger System: Development Summary
-
-This document outlines the architectural changes and implementation steps completed to integrate the **Interactive Debugger** across Labs 1, 4, and 5.
-
-## 1. Project Goal
-The objective was to transform standalone lab components into a **Monolithic Integrated System**. The Shell (Lab 1) now directly invokes the VM (Lab 4) and GC (Lab 5) through a shared memory space, satisfying the requirement that "data flows across components through well-defined interfaces."
+# Technical Specifications & Instruction Manual: Integrated VM Framework
+**Version:** 1.0 (Final Integration)  
+**Target Environment:** Linux (Smaug/Hobbit31)  
+**Modules:** Shell (Lab 1), Parser (Lab 2/3), VM/Debugger (Lab 4), Garbage Collector (Lab 5)
 
 ---
 
-## 2. System Architecture
-The integration uses a **Fork-and-Execute** model within the same binary. This ensures that the Debugger has full access to the VM's internal structures while keeping the main Shell protected from VM crashes.
+## 1. System Architecture: The Unified Pipeline
+
+The system is designed as an interdependent pipeline where the state of the **Virtual Machine (Lab 4)** is analyzed by the **Garbage Collector (Lab 5)** and managed by the **Shell (Lab 1)**.
+
+### The Interdependence Model
+* **Root Identification:** The GC uses the VM's `stack_top` to identify reachable objects.
+* **Process Persistence:** The Shell monitors the VM's PID to ensure stability.
+* **Contextual Debugging:** The Debugger maps the VM's Program Counter (PC) to instruction mnemonics.
 
 
-
-### Flow of Control:
-1. **Shell:** Captures the `debug <pid>` directive.
-2. **Process Manager:** Locates the process metadata and forks.
-3. **Child Process:** Initializes a fresh VM state (`vm_init`) and hands control to the Debugger.
-4. **Debugger:** Executes an interactive loop that calls internal VM functions (`vm_step`, `gc_collect`).
 
 ---
 
-## 3. Implementation Phases
+## 2. Integrated Instruction Set (Debugger Commands)
 
-### Phase 1: Shell Directive & Integrated Linking
-* **Directive Implementation:** Added `handle_debug` to `execute.c` to validate user input.
-* **Linker Configuration:** Updated the `Makefile` to link VM source files (from `Folder 5`) directly into the Shell binary. This allows the Shell to call VM functions without needing an external `execvp` call.
-* **Header Resolution:** Fixed `pid_t` and `fork` errors by including `<sys/types.h>` and `<unistd.h>`.
+When execution is paused at the `(debug pc=X) >` prompt, the following commands are utilized to manage the system state.
+
+### A. Execution & Control
+* **`step`**: Increments the `PC` by 1 and executes the next opcode.
+* **`continue`**: Resumes the VM fetch-execute loop until a `HALT` instruction or a breakpoint address is met.
+* **`break <addr>`**: Registers a specific address in the `bp_table`.
+* **`info break`**: Displays the table of active breakpoints.
+* **`delete <id>`**: Removes a breakpoint based on its Table ID.
+
+### B. Memory & GC Analysis
+* **`memstat`**: Performs a holistic audit.
+    * **Logic:** `Live on Heap = Created - Freed`.
+    * **Metadata:** Displays PC, instruction type, and current byte usage.
+* **`gc`**: Manual invocation of the Mark-and-Sweep cycle.
+* **`leaks`**: An audit of orphaned objects.
+    * **Logic:** `Potential Leaks = Live on Heap - Live on Stack`.
 
 
-
-### Phase 2: Virtual Machine Control (Lab 4)
-* **Instruction Stepping:** Integrated the `step` command to trigger `vm_step(p)`.
-* **Breakpoints:** Implemented a breakpoint management system allowing users to set (`break <addr>`) and clear (`delete`) stops at specific bytecode addresses.
-* **Execution Flow:** Implemented `continue` logic to run the VM until a breakpoint or `HALT` is reached.
-
-
-
-### Phase 3: Memory & GC Integration (Lab 5)
-* **Heap Analysis:** Added the `memstat` command inside the debugger to inspect global memory and the stack.
-* **Manual GC:** Integrated the `gc` command to allow the user to manually trigger the Mark-and-Sweep collector during a debug session.
-
----
-
-## 4. Key File Changes
-
-| File | Purpose |
-| :--- | :--- |
-| `1.mini-shell/mini-shell.c` | Added `handle_debug` to the primary command loop. |
-| `1.mini-shell/process/process_mgmt.c` | Implemented `debug_program` to fork and initialize the VM context. |
-| `1.mini-shell/Makefile` | Configured to "absorb" VM `.c` files into the Shell executable. |
-| `5.VM(ASS)withGC/debugger.c` | The core interactive loop managing breakpoints and stepping. |
-| `5.VM(ASS)withGC/debugger.h` | The modular interface for teammate collaboration. |
 
 ---
 
-## 5. Testing Protocol
-To verify the integration, follow these steps from the shell:
+## 3. The Garbage Collection Protocol (Lab 5)
 
-1. **Submit:** `submit tests/valid/test.byc` (Note the PID).
-2. **Launch:** `debug <PID>`.
-3. **Control:**
-    * `break 10` -> Set a breakpoint.
-    * `continue` -> Run until the breakpoint.
-    * `step` -> Observe the PC increment.
-4. **Analyze:**
-    * `memstat` -> View the Lab 5 memory state.
-    * `gc` -> Trigger the Lab 5 Garbage Collector.
+The system manages memory through a "Mark-and-Sweep" algorithm that synchronizes the **VM Stack** with the **Dynamic Heap**.
+
+### Phase I: The Mark Phase
+1.  The GC scans the VM Operand Stack from index `0` to `stack_top`.
+2.  Every pointer found is marked as "Reachable" (`o->marked = 1`).
+3.  **Recursive Visit:** For `ObjPair` types, the GC recursively visits the `left` and `right` children. This ensures complex graphs (linked lists, trees) are preserved.
+
+### Phase II: The Sweep Phase
+1.  The GC traverses the global `heap_objects` linked list.
+2.  Any object found with `marked == 0` is unlinked from the list and passed to `free()`.
+3.  The global `no_of_object_freed` counter is incremented for every reclaimed object.
+
+
 
 ---
 
+## 4. Implementation Invariants & Rules
 
-### the part which are not done yet are, debugger memstat , leak , gc 
-- execution way
-in folder 1 go and make
-from ./mini-shell -> give input as submit filename(eg;- tests/valid/01_var_decl.txt) -> .asm file -> assembler -> byc ->vm
+To ensure a "Proper" integration, the following rules are enforced in the source code:
 
+1.  **PC Non-Mutation:** Diagnostic commands (`memstat`, `gc`, `leaks`) must **never** modify the Program Counter. They are read-only observers.
+2.  **Structural Consistency:** The `Breakpoint` struct must utilize the exact field name `addr` (or `address`) to match the debugger's print logic.
+3.  **State Synchronization:** Before reporting memory, the system must call `checkstack()` to ensure the `stack_object_count` is synchronized with the actual VM stack pointer.
+4.  **Signal Isolation:** The Shell must capture `SIGINT` so that a user hitting `Ctrl+C` in the debugger is returned to the `(debug) >` prompt rather than exiting to the Linux terminal.
 
-debugger is not done yet
+---
+
+## 5. Stress Testing & Validation Procedures
+
+To verify the system's robustness, the following procedures should be performed:
+
+| Test | Objective | Success Criteria |
+| :--- | :--- | :--- |
+| **Orphan Stress** | Generate 1,000 unreferenced Pairs. | `memstat` shows 1,000 "Objects to be Freed." |
+| **Collector Delta** | Run `gc` twice at the same PC. | First run: $X$ freed; Second run: **0** freed. |
+| **PC Persistence** | Run `gc` mid-execution. | PC remains at the current instruction; no skip occurs. |
+| **Process Overflow** | Submit beyond `MAX_PROCESSES`. | Shell returns an error instead of crashing. |
+
+---
+
+## 6. Conclusion
+This system represents a fully integrated virtual computer. The synergy between the Shell's process management and the VM's memory reclamation provides a transparent, industrial-grade environment for bytecode execution.

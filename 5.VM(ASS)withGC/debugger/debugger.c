@@ -114,14 +114,13 @@ void list_code(Program *p) {
     printf("------------------------------------------\n");
 }
 
-/* --- Main Debug Loop --- */
 
 void debug_start(Program *p) {
     char cmd[64];
     int val;
 
-    printf("\n=== FULLY-FLEDGED VM DEBUGGER ===\n");
-    printf("Commands: step, continue, break <addr>, delete <id>, info break, clear, list, exit\n");
+    printf("\n=== VM DEBUGGER ===\n");
+    printf("Commands: step, continue, break <addr>, delete <id>, info break, clear, list, memstat, gc, leaks ,exit \n");
 
     while (1) {
         printf("(debug pc=%d) > ", p->pc);
