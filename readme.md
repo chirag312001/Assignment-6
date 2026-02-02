@@ -83,5 +83,10 @@ To verify the system's robustness, the following procedures should be performed:
 
 ---
 
+## Run Instruction
+
+- cd 1.minishell -> make -> ./mini-shell -> submit pathOfTheTestCase -> run pid or kill pid or debug pid.
+- debug pid -> debugger will open for that pid -> select the option and debug.
+
 ## 6. Conclusion
 This system represents a fully integrated virtual computer. The synergy between the Shell's process management and the VM's memory reclamation provides a transparent, industrial-grade environment for bytecode execution.
